@@ -3,6 +3,9 @@ use std::{
     thread,
 };
 
+// Defining threadpool as workers and senders
+// Each worker lives in its own thread
+// Senders send jobs over to workers in whatever order, there's no real bias
 pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: Option<mpsc::Sender<Job>>,
@@ -47,6 +50,8 @@ impl ThreadPool {
     }
 }
 
+// Implementing a drop function for forced shutdown or to receive the value
+// of a thread
 impl Drop for ThreadPool {
     fn drop(&mut self) {
         drop(self.sender.take());
@@ -61,13 +66,21 @@ impl Drop for ThreadPool {
     }
 }
 
+// Every worker has an ID for house keeping
+// The threads all have a join handle so they can eventually join and send over their
+// info to main
 struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
+    // recievers have ARC (a smart pointer) and mutex locks, in order to make sure
+    // every consumer can only accept one job and won't get weirdly overwritten
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        // Once a thread gets a lock, you get info from the channel
+        // Executes the job once the info is received, but only after unlocking the lock
+        // to make sure other threads can also receive jobs
         let thread = thread::spawn(move || loop {
             let message = receiver.lock().unwrap().recv();
 

@@ -44,16 +44,19 @@ fn main() {
         });
     }
 
-    println!("Shuttind down.")
+    println!("Shutting down.")
 }
 
 fn handle_connection(mut stream: TcpStream) {
+    // creating and reading from buffer
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
 
+    // Defining our sleep and get strings for ease
     let get = b"GET / HTTP/1.1\r\n";
     let sleep = b"GET /sleep HTTP/1.1\r\n";
 
+    // Defining status_line and file name based on what's in the buffer
     let (status_line, filename) = if buffer.starts_with(get) {
         ("HTTP/1.1 200 OK", "index.html")
     } else if buffer.starts_with(sleep) {
@@ -65,6 +68,7 @@ fn handle_connection(mut stream: TcpStream) {
 
     let contents = fs::read_to_string(filename).unwrap();
 
+    // Sending everything back as part of the request
     let response = format!(
         "{}\r\nContent-Length: {}\r\n\r\n{}",
         status_line,
@@ -72,6 +76,7 @@ fn handle_connection(mut stream: TcpStream) {
         contents
     );
 
+    // Cleanup of server
     stream.write_all(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
